@@ -118,38 +118,6 @@ class CommandsCfg:
 
 
 @configclass
-class CommandsCfgMultiMotion:
-    """Multi-motion MDP command configuration.
-
-    Similar to CommandsCfg but supports multiple reference motions,
-    enabling single-agent training across diverse motion types.
-
-    Usage:
-        For multi-motion training, use this instead of CommandsCfg
-        and specify motion_files: list[str] instead of motion_file: str
-    """
-
-    motion = mdp.MultiMotionCommandCfg(
-        asset_name="robot",
-        resampling_time_range=(1.0e9, 1.0e9),
-        motion_library_dir="",  # Optional: for motion metadata organization
-        motion_files=[],  # Will be set via command line or config override
-        debug_vis=True,
-        pose_range={
-            "x": (-0.05, 0.05),
-            "y": (-0.05, 0.05),
-            "z": (-0.01, 0.01),
-            "roll": (-0.1, 0.1),
-            "pitch": (-0.1, 0.1),
-            "yaw": (-0.2, 0.2),
-        },
-        velocity_range=VELOCITY_RANGE,
-        joint_position_range=(-0.1, 0.1),
-        motion_info_list=None,  # Optional: pre-configured motion metadata
-    )
-
-
-@configclass
 class ActionsCfg:
     """MDP动作规范配置
 
@@ -266,131 +234,6 @@ class ObservationsCfg:
 
 
 @configclass
-class ObservationsCfgMultiMotion:
-    """Multi-motion observations configuration.
-
-    Extends the base observations with motion encoding (one-hot ID, change signal, progress)
-    to enable multi-motion training where the policy can distinguish between different motions.
-    """
-
-    @configclass
-    class PolicyCfgMultiMotion(ObsGroup):
-        """Policy observations for multi-motion training."""
-
-        # Standard observations
-        command = ObsTerm(
-            func=mdp.generated_commands,
-            params={"command_name": "motion"}
-        )
-
-        motion_id_encoding = ObsTerm(
-            func=mdp.motion_id_encoding,
-            params={"command_name": "motion"}
-        )  # One-hot motion ID: [num_motions]
-
-        motion_change_signal = ObsTerm(
-            func=mdp.motion_change_signal,
-            params={"command_name": "motion", "window_size": 5}
-        )  # Motion change signal: [1]
-
-        motion_progress = ObsTerm(
-            func=mdp.motion_progress,
-            params={"command_name": "motion"}
-        )  # Motion progress: [1]
-
-        motion_anchor_pos_b = ObsTerm(
-            func=mdp.motion_anchor_pos_b,
-            params={"command_name": "motion"},
-            noise=Unoise(n_min=-0.25, n_max=0.25)
-        )
-
-        motion_anchor_ori_b = ObsTerm(
-            func=mdp.motion_anchor_ori_b,
-            params={"command_name": "motion"},
-            noise=Unoise(n_min=-0.05, n_max=0.05)
-        )
-
-        base_lin_vel = ObsTerm(
-            func=mdp.base_lin_vel,
-            noise=Unoise(n_min=-0.5, n_max=0.5)
-        )
-
-        base_ang_vel = ObsTerm(
-            func=mdp.base_ang_vel,
-            noise=Unoise(n_min=-0.2, n_max=0.2)
-        )
-
-        joint_pos = ObsTerm(
-            func=mdp.joint_pos_rel,
-            noise=Unoise(n_min=-0.01, n_max=0.01)
-        )
-
-        joint_vel = ObsTerm(
-            func=mdp.joint_vel_rel,
-            noise=Unoise(n_min=-0.5, n_max=0.5)
-        )
-
-        actions = ObsTerm(func=mdp.last_action)
-
-        def __post_init__(self):
-            self.enable_corruption = True
-            self.concatenate_terms = True
-
-    @configclass
-    class PrivilegedCfgMultiMotion(ObsGroup):
-        """Privileged observations for critic network in multi-motion training."""
-
-        command = ObsTerm(
-            func=mdp.generated_commands,
-            params={"command_name": "motion"}
-        )
-
-        motion_id_encoding = ObsTerm(
-            func=mdp.motion_id_encoding,
-            params={"command_name": "motion"}
-        )  # No noise for critic
-
-        motion_change_signal = ObsTerm(
-            func=mdp.motion_change_signal,
-            params={"command_name": "motion", "window_size": 5}
-        )
-
-        motion_progress = ObsTerm(
-            func=mdp.motion_progress,
-            params={"command_name": "motion"}
-        )
-
-        motion_anchor_pos_b = ObsTerm(
-            func=mdp.motion_anchor_pos_b,
-            params={"command_name": "motion"}
-        )
-
-        motion_anchor_ori_b = ObsTerm(
-            func=mdp.motion_anchor_ori_b,
-            params={"command_name": "motion"}
-        )
-
-        body_pos = ObsTerm(
-            func=mdp.robot_body_pos_b,
-            params={"command_name": "motion"}
-        )
-
-        body_ori = ObsTerm(
-            func=mdp.robot_body_ori_b,
-            params={"command_name": "motion"}
-        )
-
-        base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel)
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel)
-        actions = ObsTerm(func=mdp.last_action)
-
-    policy: PolicyCfgMultiMotion = PolicyCfgMultiMotion()
-    critic: PrivilegedCfgMultiMotion = PrivilegedCfgMultiMotion()
-
-
-@configclass
 class EventCfg:
     """Configuration for events."""
 
@@ -421,7 +264,7 @@ class EventCfg:
         func=mdp.randomize_rigid_body_com,
         mode="startup",                              # 启动时执行
         params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="pelvis"), # 修改body_names对应机器人的身体部位
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"), # 修改body_names对应机器人的身体部位
             "com_range": {                           # 质心随机化范围(m)
                 "x": (-0.025, 0.025),               # X方向质心偏移
                 "y": (-0.05, 0.05),                 # Y方向质心偏移
