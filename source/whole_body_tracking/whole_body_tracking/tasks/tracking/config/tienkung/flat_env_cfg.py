@@ -5,7 +5,11 @@ import whole_body_tracking.tasks.tracking.mdp as mdp
 
 from whole_body_tracking.robots.tienkung import TIENKUNG_ACTION_SCALE, TIENKUNG_CFG
 from whole_body_tracking.tasks.tracking.config.walker.agents.rsl_rl_ppo_cfg import LOW_FREQ_SCALE
-from whole_body_tracking.tasks.tracking.tracking_env_cfg import TrackingEnvCfg
+from whole_body_tracking.tasks.tracking.tracking_env_cfg import (
+    CommandsCfgMultiMotion,
+    ObservationsCfgMultiMotion,
+    TrackingEnvCfg,
+)
 
 
 
@@ -71,3 +75,52 @@ class TienkungFlatLowFreqEnvCfg(TienkungFlatEnvCfg):
         super().__post_init__()
         self.decimation = round(self.decimation / LOW_FREQ_SCALE)
         self.rewards.action_rate_l2.weight *= LOW_FREQ_SCALE
+
+
+@configclass
+class TienkungFlatStageDistillEnvCfg(TienkungFlatEnvCfg):
+    """Stage-distillation training env with fixed multi-motion dataset in config.
+
+    Stage-specific datasets are still selected by staged runner config,
+    while this env guarantees a stable multi-motion command/observation schema.
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.commands = CommandsCfgMultiMotion()
+        self.observations = ObservationsCfgMultiMotion()
+        self.commands.motion.anchor_body_name = "pelvis"
+        self.commands.motion.body_names = [
+            "pelvis",
+            "hip_roll_l_link",
+            "hip_pitch_l_link",
+            "hip_yaw_l_link",
+            "knee_pitch_l_link",
+            "ankle_pitch_l_link",
+            "ankle_roll_l_link",
+            "hip_roll_r_link",
+            "hip_pitch_r_link",
+            "hip_yaw_r_link",
+            "knee_pitch_r_link",
+            "ankle_pitch_r_link",
+            "ankle_roll_r_link",
+            "shoulder_pitch_l_link",
+            "shoulder_roll_l_link",
+            "shoulder_yaw_l_link",
+            "elbow_pitch_l_link",
+            "shoulder_pitch_r_link",
+            "shoulder_roll_r_link",
+            "shoulder_yaw_r_link",
+            "elbow_pitch_r_link",
+        ]
+
+        # Default stage1 list in env cfg; stage2 list is provided by staged runner cfg.
+        self.commands.motion.motion_files = [
+            "source/motion/tienkung_lite/npz/walk1_subject1_tienkung.npz",
+        ]
+        self.commands.motion.motion_selector_type = "uniform"
+
+        # Keep observation width stable when stage2 expands motion count.
+        self.commands.motion.use_embedding = True
+        self.commands.motion.embedding_dim = 16

@@ -30,6 +30,34 @@ class WalkerFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
     )
 
+    staged_training = {
+        "enabled": False,
+        "stage1": {
+            "run_name_suffix": "_stage1",
+            "max_iterations": 10000,
+            "enable_amp": True,
+            "enable_distill": False,
+            "motion_selector": "uniform",
+            "motion_files": [
+                "source/motion/walker/npz/Walker_Walk_B15.npz",
+            ],
+        },
+        "stage2": {
+            "run_name_suffix": "_stage2",
+            "max_iterations": 20000,
+            "enable_amp": False,
+            "enable_distill": True,
+            "teacher_source": "stage1",
+            "teacher_checkpoint": None,
+            "distill_action_coef": 1.0,
+            "distill_feature_coef": 0.5,
+            "motion_selector": "adaptive",
+            "motion_files": [
+                "source/motion/walker/npz/Walker_Walk_B15.npz",
+            ],
+        },
+    }
+
 
 LOW_FREQ_SCALE = 0.5
 
@@ -41,3 +69,12 @@ class WalkerFlatLowFreqPPORunnerCfg(WalkerFlatPPORunnerCfg):
         self.num_steps_per_env = round(self.num_steps_per_env * LOW_FREQ_SCALE)
         self.algorithm.gamma = self.algorithm.gamma ** (1 / LOW_FREQ_SCALE)
         self.algorithm.lam = self.algorithm.lam ** (1 / LOW_FREQ_SCALE)
+
+
+@configclass
+class WalkerFlatStageDistillPPORunnerCfg(WalkerFlatPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.staged_training = dict(self.staged_training)
+        self.staged_training["enabled"] = True
+        self.run_name = (self.run_name or "") + "_staged"

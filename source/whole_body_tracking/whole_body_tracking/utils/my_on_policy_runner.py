@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from rsl_rl.env import VecEnv
 from rsl_rl.runners.on_policy_runner import OnPolicyRunner
@@ -77,10 +78,39 @@ class MyOnPolicyRunner(OnPolicyRunner):
 
 class MotionOnPolicyRunner(OnPolicyRunner):
     def __init__(
-        self, env: VecEnv, train_cfg: dict, log_dir: str | None = None, device="cpu", registry_name: str = None
+        self,
+        env: VecEnv,
+        train_cfg: dict,
+        log_dir: str | None = None,
+        device="cpu",
+        registry_name: str = None,
+        stage_context: dict | None = None,
     ):
         super().__init__(env, _upgrade_legacy_train_cfg(env, train_cfg), log_dir, device)
         self.registry_name = registry_name
+        self.stage_context = stage_context or {}
+        self._stage_log_dir = log_dir
+
+        stage_name = self.stage_context.get("stage_name")
+        if stage_name:
+            print(
+                f"[STAGED] Runner initialized for {stage_name} "
+                f"(amp={self.stage_context.get('enable_amp', False)}, "
+                f"distill={self.stage_context.get('enable_distill', False)})"
+            )
+
+    def emit_stage_summary(self) -> None:
+        """Write a lightweight stage summary to logs for experiment traceability."""
+        if not self._stage_log_dir or not self.stage_context:
+            return
+
+        summary_path = os.path.join(self._stage_log_dir, "params", "stage_context.txt")
+        os.makedirs(os.path.dirname(summary_path), exist_ok=True)
+
+        with open(summary_path, "w", encoding="utf-8") as f:
+            f.write(f"timestamp={datetime.now().isoformat()}\n")
+            for key, value in self.stage_context.items():
+                f.write(f"{key}={value}\n")
 
     def save(self, path: str, infos=None):
         """Save the model and training information."""

@@ -84,3 +84,17 @@ class G1MultiMotionEnvCfg(TrackingEnvCfg):
             "right_elbow_link",
             "right_wrist_yaw_link",
         ]
+
+
+@configclass
+class G1FlatStageDistillEnvCfg(G1MultiMotionEnvCfg):
+    """Two-stage distillation env for G1 with a fixed multi-motion baseline list."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.commands.motion.motion_files = [
+            "source/motion/unitree_g1/npz/EKUT/265/SLP105_stageii.npz",
+        ]
+        self.commands.motion.motion_selector_type = "uniform"
+        self.commands.motion.use_embedding = True
+        self.commands.motion.embedding_dim = 16

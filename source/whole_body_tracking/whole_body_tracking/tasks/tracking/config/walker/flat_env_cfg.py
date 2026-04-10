@@ -6,7 +6,11 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from whole_body_tracking.robots.walker import WALKER_ACTION_SCALE, WALKER_CFG
 from whole_body_tracking.tasks.tracking.config.walker.agents.rsl_rl_ppo_cfg import LOW_FREQ_SCALE
-from whole_body_tracking.tasks.tracking.tracking_env_cfg import TrackingEnvCfg
+from whole_body_tracking.tasks.tracking.tracking_env_cfg import (
+    CommandsCfgMultiMotion,
+    ObservationsCfgMultiMotion,
+    TrackingEnvCfg,
+)
 
 from whole_body_tracking.tasks.tracking.config.walker.walker_tracking_env_cfg import \
     WalkerTrackingEnvCfg
@@ -85,3 +89,38 @@ class WalkerFlatLowFreqEnvCfg(WalkerFlatEnvCfg):
         super().__post_init__()
         self.decimation = round(self.decimation / LOW_FREQ_SCALE)
         self.rewards.action_rate_l2.weight *= LOW_FREQ_SCALE
+
+
+@configclass
+class WalkerFlatStageDistillEnvCfg(WalkerFlatEnvCfg):
+    """Stage-distillation training env for walker with fixed multi-motion schema."""
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.commands = CommandsCfgMultiMotion()
+        self.observations = ObservationsCfgMultiMotion()
+        self.commands.motion.anchor_body_name = "pelvis"
+        self.commands.motion.body_names = [
+            "pelvis",
+            "hip_roll_l_link",
+            "knee_pitch_l_link",
+            "ankle_roll_l_link",
+            "hip_roll_r_link",
+            "knee_pitch_r_link",
+            "ankle_roll_r_link",
+            "waist_yaw_link",
+            "shoulder_yaw_l_link",
+            "elbow_yaw_l_link",
+            "wrist_roll_l_link",
+            "shoulder_yaw_r_link",
+            "elbow_yaw_r_link",
+            "wrist_roll_r_link",
+        ]
+
+        self.commands.motion.motion_files = [
+            "source/motion/walker/npz/Walker_Walk_B15.npz",
+        ]
+        self.commands.motion.motion_selector_type = "uniform"
+        self.commands.motion.use_embedding = True
+        self.commands.motion.embedding_dim = 16

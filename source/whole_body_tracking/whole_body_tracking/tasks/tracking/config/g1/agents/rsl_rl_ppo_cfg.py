@@ -30,6 +30,38 @@ class G1FlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
     )
 
+    staged_training = {
+        "enabled": False,
+        "stage1": {
+            "run_name_suffix": "_stage1",
+            "max_iterations": 8000,
+            "enable_amp": True,
+            "enable_distill": False,
+            "motion_selector": "uniform",
+            "motion_files": [
+                "source/motion/unitree_g1/npz/EKUT/265/SLP105_stageii.npz",
+            ],
+        },
+        "stage2": {
+            "run_name_suffix": "_stage2",
+            "max_iterations": 15000,
+            "enable_amp": False,
+            "enable_distill": True,
+            "teacher_source": "stage1",
+            "teacher_checkpoint": None,
+            "distill_action_coef": 1.0,
+            "distill_feature_coef": 0.5,
+            "motion_selector": "curriculum",
+            "motion_files": [
+                "source/motion/unitree_g1/npz/EKUT/265/SLP105_stageii.npz",
+                "source/motion/unitree_g1/npz/EKUT/265/WSTR03_stageii.npz",
+                "source/motion/unitree_g1/npz/EKUT/265/WSTR05_stageii.npz",
+                "source/motion/unitree_g1/npz/EKUT/265/SLP204_stageii.npz",
+                "source/motion/unitree_g1/npz/EKUT/265/BEAMN04_stageii.npz",
+            ],
+        },
+    }
+
 
 @configclass
 class G1MultiMotionPPORunnerCfg(G1FlatPPORunnerCfg):
@@ -46,3 +78,12 @@ class G1FlatLowFreqPPORunnerCfg(G1FlatPPORunnerCfg):
         self.num_steps_per_env = round(self.num_steps_per_env * LOW_FREQ_SCALE)
         self.algorithm.gamma = self.algorithm.gamma ** (1 / LOW_FREQ_SCALE)
         self.algorithm.lam = self.algorithm.lam ** (1 / LOW_FREQ_SCALE)
+
+
+@configclass
+class G1FlatStageDistillPPORunnerCfg(G1FlatPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.staged_training = dict(self.staged_training)
+        self.staged_training["enabled"] = True
+        self.run_name = (self.run_name or "") + "_staged"
